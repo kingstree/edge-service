@@ -25,8 +25,8 @@ spec:
           ports:
             - containerPort: 9000
           env:
-            - name: CATALOG_SERVICE_URL
-              value: http://catalog-service
+            - name: PRODUCT_SERVICE_URL
+              value: http://product-service
             - name: ORDER_SERVICE_URL
               value: http://order-service
             - name: SPA_URL
