@@ -50,7 +50,7 @@ dependencyManagement {// 책에서는 없으나... 클라우드 디펜던시가 
 }
 tasks.bootBuildImage {
     builder.set("paketobuildpacks/builder-jammy-java-tiny:0.0.46")
-    imagePlatform.set("linux/arm64")
+   //imagePlatform.set("linux/arm64")
     imageName.set(project.name)
     //imageName.set("ghcr.io/kingstree/${project.name}:latest")   // ★ 레지스트리·계정 포함
     environment.put("BP_JVM_VERSION", "17")
