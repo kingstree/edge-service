@@ -68,6 +68,10 @@ spring:
             - name: CircuitBreaker
               args:
                 name: orderCircuitBreaker
+        - id: spa-route
+          uri: ${SPA_URL:http://localhost:9004}
+          predicates:
+            - Path=/,/*.css,/*.js,/favicon.ico
   session:
     store-type: redis
     timeout: 10m
@@ -79,7 +83,17 @@ spring:
       host: localhost
       port: 6379
       timeout: 1s
-
+  security:
+    oauth2:
+      client:
+        registration:
+          keycloak:
+            client-id: edge-service # 키클록에 정의된 Oauth2 클라이언트 식별자
+            client-secret: bookshop-keycloak-secret # 클라이언트가 키클록과 인증하기 위해 사용하는 공유 시크릿
+            scope: openid
+        provider:
+          keycloak:
+            issuer-uri: http://localhost:8080/realms/bookshop
 resilience4j:
   circuitbreaker:
     configs:
