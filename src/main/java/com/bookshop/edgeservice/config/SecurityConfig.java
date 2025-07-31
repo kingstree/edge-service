@@ -1,7 +1,14 @@
 package com.bookshop.edgeservice.config;
 
+import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
+import org.springframework.security.config.annotation.web.configurers.oauth2.server.resource.OAuth2ResourceServerConfigurer;
+import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.oauth2.client.oidc.web.server.logout.OidcClientInitiatedServerLogoutSuccessHandler;
 import org.springframework.security.oauth2.client.registration.ReactiveClientRegistrationRepository;
+import org.springframework.security.oauth2.client.web.server.ServerOAuth2AuthorizedClientRepository;
+import org.springframework.security.oauth2.client.web.server.WebSessionServerOAuth2AuthorizedClientRepository;
+import org.springframework.security.web.SecurityFilterChain;
 import reactor.core.publisher.Mono;
 
 import org.springframework.context.annotation.Bean;
@@ -15,25 +22,29 @@ import org.springframework.security.web.server.SecurityWebFilterChain;
 import org.springframework.security.web.server.authentication.HttpStatusServerEntryPoint;
 import org.springframework.security.web.server.authentication.logout.ServerLogoutSuccessHandler;
 import org.springframework.security.web.server.csrf.CookieServerCsrfTokenRepository;
+import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
+import org.springframework.security.oauth2.server.resource.authentication.JwtGrantedAuthoritiesConverter;
 import org.springframework.security.web.server.csrf.CsrfToken;
 import org.springframework.web.server.WebFilter;
 
 @EnableWebFluxSecurity
 public class SecurityConfig {
 
+	@Bean //웹 세션에 액세스 ㅌ토큰을 저장하기 위한 리포지터리를 정의
+	ServerOAuth2AuthorizedClientRepository authorizedClientRepository() {
+		return new WebSessionServerOAuth2AuthorizedClientRepository();
+	}
 	@Bean
-	SecurityWebFilterChain springSecurityFilterChain(ServerHttpSecurity http, ReactiveClientRegistrationRepository clientRegistrationRepository) {
+	SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
 		return http
-				.authorizeExchange(exchange -> exchange// 모든 요청에 대한 인증
-						.pathMatchers("/", "/*.css", "/*.js", "/favicon.ico").permitAll() //정적 리소스에 대한 인증되지 않은 액세스 허용
-					 	.pathMatchers(HttpMethod.GET, "/books/**").permitAll()//상품에 대한 인즉되지 않은 액세스 허용
-						.anyExchange().authenticated() //다른 요청은 인증이 필요함
+				.authorizeHttpRequests(authorize -> authorize
+						.requestMatchers(HttpMethod.GET, "/", "/books/**").permitAll()
+						.anyRequest().hasRole("employee")
 				)
-				.exceptionHandling(exceptionHandling -> exceptionHandling
-						.authenticationEntryPoint(new HttpStatusServerEntryPoint(HttpStatus.UNAUTHORIZED)))//사용자가 인증되지 않았기 때문에 예외를 401로 응답
-				.oauth2Login(Customizer.withDefaults())//OAuth2/오픈아이디 커넥트를 사용한 사용자 인증 활성
-				.logout(logout -> logout.logoutSuccessHandler(oidcLogoutSuccessHandler(clientRegistrationRepository)))//로그아웃이 성공적으로 완료되는 경우에 대한 사용자 지정 핸들러 정의
-				.csrf(csrf -> csrf.csrfTokenRepository(CookieServerCsrfTokenRepository.withHttpOnlyFalse()))//앵귤러 프론트엔드와 CSRF 토킁을 교환하기 위한 쿠키 기반 방식을 사용
+				.oauth2ResourceServer(OAuth2ResourceServerConfigurer::jwt)
+				.sessionManagement(sessionManagement ->
+						sessionManagement.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+				.csrf(AbstractHttpConfigurer::disable)
 				.build();
 	}
 
@@ -53,6 +64,17 @@ public class SecurityConfig {
 			}));
 			return chain.filter(exchange);
 		};
+	}
+
+	@Bean
+	public JwtAuthenticationConverter jwtAuthenticationConverter() {
+		var jwtGrantedAuthoritiesConverter = new JwtGrantedAuthoritiesConverter();
+		jwtGrantedAuthoritiesConverter.setAuthorityPrefix("ROLE_"); //권한별 사용자 역활에 접두어를 붙임
+		jwtGrantedAuthoritiesConverter.setAuthoritiesClaimName("roles"); //roles 클레임에서 역할을 추출
+
+		var jwtAuthenticationConverter = new JwtAuthenticationConverter(); //jwt를 변환할 방법을 정의한다 부여된 권한을 만드는 방법만 사용자 지정한다.
+		jwtAuthenticationConverter.setJwtGrantedAuthoritiesConverter(jwtGrantedAuthoritiesConverter);
+		return jwtAuthenticationConverter;
 	}
 
 }
