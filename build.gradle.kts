@@ -8,6 +8,7 @@ group = "com.bookshop"
 version = "0.0.1-SNAPSHOT"
 extra.set("springCloudVersion", "2023.0.1")
 extra.set("testcontainersVersion", "1.19.8")
+extra.set("otelVersion", "1.33.3")
 java {
     toolchain {
         languageVersion = JavaLanguageVersion.of(17)
@@ -34,7 +35,12 @@ dependencies {
     implementation ("org.springframework.session:spring-session-data-redis")
     implementation ("org.springframework.boot:spring-boot-starter-security")
     // Only on Apple Silicon. Why it's necessary: https://github.com/netty/netty/issues/11020
+    runtimeOnly ("io.github.resilience4j:resilience4j-micrometer")
      runtimeOnly ("io.netty:netty-resolver-dns-native-macos:4.1.101.Final:osx-aarch_64")
+    runtimeOnly ("io.micrometer:micrometer-registry-prometheus")
+    runtimeOnly ("io.opentelemetry.javaagent:opentelemetry-javaagent:${property("otelVersion")}")
+    //모니터링과 관리를 위한 액추에이터 의존성 추화
+    implementation("org.springframework.boot:spring-boot-starter-actuator")
 
 
     testImplementation ("org.springframework.boot:spring-boot-starter-test")
@@ -54,7 +60,7 @@ dependencyManagement {// 책에서는 없으나... 클라우드 디펜던시가 
 }
 tasks.bootBuildImage {
     builder.set("paketobuildpacks/builder-jammy-java-tiny:0.0.46")
-   //imagePlatform.set("linux/arm64")
+    //imagePlatform.set("linux/arm64")
     imageName.set(project.name)
     //imageName.set("ghcr.io/kingstree/${project.name}:latest")   // ★ 레지스트리·계정 포함
     environment.put("BP_JVM_VERSION", "17")
