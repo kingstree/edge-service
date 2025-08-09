@@ -1,26 +1,28 @@
 package com.bookshop.edgeservice.config;
 
 import org.springframework.context.annotation.Configuration;
-import org.springframework.security.config.annotation.web.builders.HttpSecurity;
-import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
-import org.springframework.security.config.annotation.web.configurers.oauth2.server.resource.OAuth2ResourceServerConfigurer;
-import org.springframework.security.config.http.SessionCreationPolicy;
+
+import org.springframework.http.HttpStatus;
+import org.springframework.security.config.Customizer;
+import org.springframework.security.config.web.server.ServerHttpSecurity;
 import org.springframework.security.oauth2.client.oidc.web.server.logout.OidcClientInitiatedServerLogoutSuccessHandler;
 import org.springframework.security.oauth2.client.registration.ReactiveClientRegistrationRepository;
 import org.springframework.security.oauth2.client.web.server.ServerOAuth2AuthorizedClientRepository;
 import org.springframework.security.oauth2.client.web.server.WebSessionServerOAuth2AuthorizedClientRepository;
-import org.springframework.security.web.SecurityFilterChain;
+
+import org.springframework.security.web.server.SecurityWebFilterChain;
+import org.springframework.security.web.server.authentication.HttpStatusServerEntryPoint;
+import org.springframework.security.web.server.csrf.CookieServerCsrfTokenRepository;
 import reactor.core.publisher.Mono;
 import org.springframework.context.annotation.Bean;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.reactive.EnableWebFluxSecurity;
 import org.springframework.security.web.server.authentication.logout.ServerLogoutSuccessHandler;
-import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
-import org.springframework.security.oauth2.server.resource.authentication.JwtGrantedAuthoritiesConverter;
+
 import org.springframework.security.web.server.csrf.CsrfToken;
 import org.springframework.web.server.WebFilter;
 
-@Configuration
+
 @EnableWebFluxSecurity
 public class SecurityConfig {
 
@@ -29,17 +31,19 @@ public class SecurityConfig {
 		return new WebSessionServerOAuth2AuthorizedClientRepository();
 	}
 	@Bean
-	SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+	SecurityWebFilterChain springSecurityFilterChain(ServerHttpSecurity http, ReactiveClientRegistrationRepository clientRegistrationRepository) {
 		return http
-				.authorizeHttpRequests(authorize -> authorize
-						.requestMatchers("/actuator/**").permitAll()
-						.requestMatchers(HttpMethod.GET, "/", "/books/**").permitAll()
-						.anyRequest().hasRole("employee")
+				.authorizeExchange(exchange -> exchange
+						.pathMatchers("/actuator/**").permitAll()
+						.pathMatchers("/", "/*.css", "/*.js", "/favicon.ico").permitAll()
+						.pathMatchers(HttpMethod.GET, "/books/**").permitAll()
+						.anyExchange().authenticated()
 				)
-				.oauth2ResourceServer(OAuth2ResourceServerConfigurer::jwt)
-				.sessionManagement(sessionManagement ->
-						sessionManagement.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-				.csrf(AbstractHttpConfigurer::disable)
+				.exceptionHandling(exceptionHandling -> exceptionHandling
+						.authenticationEntryPoint(new HttpStatusServerEntryPoint(HttpStatus.UNAUTHORIZED)))
+				.oauth2Login(Customizer.withDefaults())
+				.logout(logout -> logout.logoutSuccessHandler(oidcLogoutSuccessHandler(clientRegistrationRepository)))
+				.csrf(csrf -> csrf.csrfTokenRepository(CookieServerCsrfTokenRepository.withHttpOnlyFalse()))
 				.build();
 	}
 
@@ -61,15 +65,5 @@ public class SecurityConfig {
 		};
 	}
 
-	@Bean
-	public JwtAuthenticationConverter jwtAuthenticationConverter() {
-		var jwtGrantedAuthoritiesConverter = new JwtGrantedAuthoritiesConverter();
-		jwtGrantedAuthoritiesConverter.setAuthorityPrefix("ROLE_"); //권한별 사용자 역활에 접두어를 붙임
-		jwtGrantedAuthoritiesConverter.setAuthoritiesClaimName("roles"); //roles 클레임에서 역할을 추출
-
-		var jwtAuthenticationConverter = new JwtAuthenticationConverter(); //jwt를 변환할 방법을 정의한다 부여된 권한을 만드는 방법만 사용자 지정한다.
-		jwtAuthenticationConverter.setJwtGrantedAuthoritiesConverter(jwtGrantedAuthoritiesConverter);
-		return jwtAuthenticationConverter;
-	}
 
 }

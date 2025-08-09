@@ -1,6 +1,7 @@
 package com.bookshop.edgeservice.config;
 
 import org.junit.jupiter.api.Test;
+import org.springframework.security.oauth2.client.OAuth2AuthorizedClientService;
 import reactor.core.publisher.Mono;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -21,6 +22,9 @@ class SecurityConfigTests {
 
 	@Autowired
 	WebTestClient webClient;
+
+	@MockBean
+	OAuth2AuthorizedClientService authorizedClientService;
 
 	@MockBean
 	ReactiveClientRegistrationRepository clientRegistrationRepository;
