@@ -11,7 +11,6 @@ import org.testcontainers.utility.DockerImageName;
 @SpringBootTest
 class EdgeServiceApplicationTests {
 
-
     private static final int REDIS_PORT = 6379;
 
     @Container
